@@ -1,6 +1,6 @@
 import os
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog, messagebox, ttk
 from dataclasses import dataclass
 from collections import Counter
 from typing import List, Dict, Tuple, Optional
@@ -176,12 +176,29 @@ def apply_changes_to_ics(unfolded_lines: List[str],
 # -----------------------------
 
 class ICSGui(tk.Tk):
+    COLORS = {
+        "bg": "#f4f6f8",
+        "panel": "#ffffff",
+        "header": "#eef2f6",
+        "text": "#17202a",
+        "muted": "#667085",
+        "border": "#d0d7de",
+        "primary": "#2563eb",
+        "primary_active": "#1d4ed8",
+    }
+
+    ACTION_KEEP = "Behalten"
+    ACTION_DELETE = "Löschen"
+    ACTION_RENAME = "Umbenennen"
+
     def __init__(self):
         super().__init__()
-        self.title("ICS Termin-Editor (SUMMARY)")
+        self.title("ICS Editor")
 
-        self.geometry("820x600")
-        self.minsize(820, 600)
+        self.geometry("1040x720")
+        self.minsize(920, 620)
+        self.configure(bg=self.COLORS["bg"])
+        self.option_add("*Font", ("DejaVu Sans", 10))
 
         self.file_path: Optional[str] = None
         self.raw_text: Optional[str] = None
@@ -193,54 +210,116 @@ class ICSGui(tk.Tk):
         # Where the file dialog should start (Docker: /data)
         self.ics_dir = os.environ.get("ICS_DIR", "/data")
 
-        # Top controls
-        top = tk.Frame(self)
-        top.pack(fill="x", padx=10, pady=10)
+        self._build_styles()
 
-        self.btn_open = tk.Button(top, text="ICS öffnen", command=self.open_file)
-        self.btn_open.pack(side="left")
+        shell = ttk.Frame(self, style="App.TFrame", padding=18)
+        shell.pack(fill="both", expand=True)
 
-        self.lbl_file = tk.Label(top, text="Keine Datei geladen", anchor="w")
-        self.lbl_file.pack(side="left", padx=10, fill="x", expand=True)
+        header = ttk.Frame(shell, style="App.TFrame")
+        header.pack(fill="x", pady=(0, 14))
 
-        # Filter row
-        filt = tk.Frame(self)
-        filt.pack(fill="x", padx=10)
+        title_box = ttk.Frame(header, style="App.TFrame")
+        title_box.pack(side="left", fill="x", expand=True)
 
-        tk.Label(filt, text="Filter:").pack(side="left")
+        ttk.Label(title_box, text="ICS Editor", style="Title.TLabel").pack(anchor="w")
+        ttk.Label(
+            title_box,
+            text="Termine aus einer ICS-Datei prüfen, umbenennen oder entfernen.",
+            style="Muted.TLabel"
+        ).pack(anchor="w", pady=(2, 0))
+
+        self.btn_open = ttk.Button(header, text="ICS-Datei öffnen", style="Primary.TButton", command=self.open_file)
+        self.btn_open.pack(side="right", padx=(12, 0), ipady=4)
+
+        toolbar = ttk.Frame(shell, style="Panel.TFrame", padding=14)
+        toolbar.pack(fill="x", pady=(0, 12))
+
+        file_box = ttk.Frame(toolbar, style="Panel.TFrame")
+        file_box.pack(side="left", fill="x", expand=True)
+
+        ttk.Label(file_box, text="Aktuelle Datei", style="Caption.TLabel").pack(anchor="w")
+        self.lbl_file = ttk.Label(file_box, text="Keine Datei geladen", style="File.TLabel", anchor="w")
+        self.lbl_file.pack(anchor="w", fill="x", pady=(3, 0))
+
+        filter_box = ttk.Frame(toolbar, style="Panel.TFrame")
+        filter_box.pack(side="right", fill="x", padx=(18, 0))
+
+        ttk.Label(filter_box, text="Filter", style="Caption.TLabel").pack(anchor="w")
         self.filter_var = tk.StringVar()
         self.filter_var.trace_add("write", lambda *_: self.render_list())
-        self.ent_filter = tk.Entry(filt, textvariable=self.filter_var)
-        self.ent_filter.pack(side="left", fill="x", expand=True, padx=6)
+        self.ent_filter = ttk.Entry(filter_box, textvariable=self.filter_var, width=30)
+        self.ent_filter.pack(anchor="w", pady=(3, 0), ipady=3)
 
-        # Scrollable list
-        self.canvas = tk.Canvas(self, borderwidth=0)
-        self.frame_list = tk.Frame(self.canvas)
-        self.vsb = tk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
+        list_panel = ttk.Frame(shell, style="Panel.TFrame")
+        list_panel.pack(fill="both", expand=True)
+
+        self.canvas = tk.Canvas(
+            list_panel,
+            borderwidth=0,
+            highlightthickness=0,
+            background=self.COLORS["panel"]
+        )
+        self.frame_list = ttk.Frame(self.canvas, style="Panel.TFrame", padding=12)
+        self.vsb = ttk.Scrollbar(list_panel, orient="vertical", command=self.canvas.yview)
         self.canvas.configure(yscrollcommand=self.vsb.set)
 
         self.vsb.pack(side="right", fill="y")
-        self.canvas.pack(side="left", fill="both", expand=True, padx=10, pady=10)
+        self.canvas.pack(side="left", fill="both", expand=True)
 
         self.canvas_frame = self.canvas.create_window((0, 0), window=self.frame_list, anchor="nw")
 
         self.frame_list.bind("<Configure>", self.on_frame_configure)
         self.canvas.bind("<Configure>", self.on_canvas_configure)
+        self.canvas.bind_all("<MouseWheel>", self.on_mousewheel)
 
-        # Bottom actions
-        bottom = tk.Frame(self)
-        bottom.pack(fill="x", padx=10, pady=10)
+        bottom = ttk.Frame(shell, style="App.TFrame")
+        bottom.pack(fill="x", pady=(12, 0))
 
-        self.btn_select_all = tk.Button(bottom, text="Alle markieren", command=lambda: self.set_all_checks(True))
-        self.btn_select_none = tk.Button(bottom, text="Keine markieren", command=lambda: self.set_all_checks(False))
+        self.btn_select_all = ttk.Button(bottom, text="Alle auswählen", command=lambda: self.set_all_checks(True))
+        self.btn_select_none = ttk.Button(bottom, text="Auswahl aufheben", command=lambda: self.set_all_checks(False))
         self.btn_select_all.pack(side="left")
-        self.btn_select_none.pack(side="left", padx=6)
+        self.btn_select_none.pack(side="left", padx=8)
 
-        self.btn_apply = tk.Button(bottom, text="Anwenden & Speichern unter…", command=self.apply_and_save, state="disabled")
-        self.btn_apply.pack(side="right")
+        self.btn_apply = ttk.Button(
+            bottom,
+            text="Änderungen speichern unter...",
+            style="Primary.TButton",
+            command=self.apply_and_save,
+            state="disabled"
+        )
+        self.btn_apply.pack(side="right", ipady=4)
 
         # internal list state
         self.rows: List[Dict] = []
+
+    def _build_styles(self):
+        style = ttk.Style(self)
+        try:
+            style.theme_use("clam")
+        except tk.TclError:
+            pass
+
+        style.configure("App.TFrame", background=self.COLORS["bg"])
+        style.configure("Panel.TFrame", background=self.COLORS["panel"])
+        style.configure("Row.TFrame", background=self.COLORS["panel"])
+        style.configure("Header.TFrame", background=self.COLORS["header"])
+
+        style.configure("TLabel", background=self.COLORS["panel"], foreground=self.COLORS["text"])
+        style.configure("Title.TLabel", background=self.COLORS["bg"], foreground=self.COLORS["text"], font=("DejaVu Sans", 19, "bold"))
+        style.configure("Muted.TLabel", background=self.COLORS["bg"], foreground=self.COLORS["muted"])
+        style.configure("Caption.TLabel", background=self.COLORS["panel"], foreground=self.COLORS["muted"], font=("DejaVu Sans", 9, "bold"))
+        style.configure("File.TLabel", background=self.COLORS["panel"], foreground=self.COLORS["text"])
+        style.configure("Header.TLabel", background=self.COLORS["header"], foreground=self.COLORS["muted"], font=("DejaVu Sans", 9, "bold"))
+        style.configure("Empty.TLabel", background=self.COLORS["panel"], foreground=self.COLORS["muted"], font=("DejaVu Sans", 11))
+
+        style.configure("TButton", padding=(12, 7), background="#ffffff", foreground=self.COLORS["text"], bordercolor=self.COLORS["border"])
+        style.map("TButton", background=[("active", "#eef2f6")])
+        style.configure("Primary.TButton", background=self.COLORS["primary"], foreground="#ffffff", bordercolor=self.COLORS["primary"])
+        style.map("Primary.TButton", background=[("active", self.COLORS["primary_active"]), ("disabled", "#9ca3af")])
+
+        style.configure("TEntry", fieldbackground="#ffffff", bordercolor=self.COLORS["border"], lightcolor=self.COLORS["border"], darkcolor=self.COLORS["border"])
+        style.configure("TCombobox", fieldbackground="#ffffff", background="#ffffff", arrowcolor=self.COLORS["text"], bordercolor=self.COLORS["border"])
+        style.configure("TCheckbutton", background=self.COLORS["panel"], foreground=self.COLORS["text"])
 
     def on_frame_configure(self, _event):
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
@@ -248,9 +327,12 @@ class ICSGui(tk.Tk):
     def on_canvas_configure(self, event):
         self.canvas.itemconfig(self.canvas_frame, width=event.width)
 
+    def on_mousewheel(self, event):
+        self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
     def open_file(self):
         path = filedialog.askopenfilename(
-            title="ICS auswählen",
+            title="ICS-Datei auswählen",
             initialdir=self.ics_dir,
             filetypes=[("iCalendar", "*.ics *.ical"), ("Alle Dateien", "*.*")]
         )
@@ -261,7 +343,7 @@ class ICSGui(tk.Tk):
             with open(path, "r", encoding="utf-8", errors="replace") as f:
                 raw = f.read()
         except Exception as e:
-            messagebox.showerror("Fehler", f"Kann Datei ned lese:\n{e}")
+            messagebox.showerror("Fehler", f"Die Datei konnte nicht gelesen werden:\n{e}")
             return
 
         self.file_path = path
@@ -292,41 +374,45 @@ class ICSGui(tk.Tk):
 
         filt = self.filter_var.get().strip().lower()
 
-        # Header
-        hdr = tk.Frame(self.frame_list)
-        hdr.pack(fill="x", pady=(0, 6))
-        tk.Label(hdr, text="✓", width=3).pack(side="left")
-        tk.Label(hdr, text="Termin (SUMMARY)", anchor="w").pack(side="left", fill="x", expand=True)
-        tk.Label(hdr, text="Anz.", width=6).pack(side="left")
-        tk.Label(hdr, text="Aktion", width=14).pack(side="left")
-        tk.Label(hdr, text="Neuer Name (wenn Umbenennen)", anchor="w").pack(side="left", fill="x", expand=True)
+        hdr = ttk.Frame(self.frame_list, style="Header.TFrame", padding=(10, 8))
+        hdr.pack(fill="x", pady=(0, 8))
+        ttk.Label(hdr, text="", width=4, style="Header.TLabel").pack(side="left")
+        ttk.Label(hdr, text="Termin", anchor="w", style="Header.TLabel").pack(side="left", fill="x", expand=True)
+        ttk.Label(hdr, text="Anzahl", width=8, anchor="center", style="Header.TLabel").pack(side="left")
+        ttk.Label(hdr, text="Aktion", width=16, anchor="w", style="Header.TLabel").pack(side="left", padx=(12, 0))
+        ttk.Label(hdr, text="Neuer Name", anchor="w", style="Header.TLabel").pack(side="left", fill="x", expand=True, padx=(10, 0))
 
         for summary in sorted(self.summary_counts.keys(), key=lambda s: s.lower()):
             count = self.summary_counts[summary]
             if filt and filt not in summary.lower():
                 continue
 
-            row = tk.Frame(self.frame_list)
-            row.pack(fill="x", pady=2)
+            row = ttk.Frame(self.frame_list, style="Row.TFrame", padding=(10, 6))
+            row.pack(fill="x", pady=1)
 
             var_checked = tk.BooleanVar(value=False)
-            tk.Checkbutton(row, variable=var_checked).pack(side="left", padx=(0, 6))
+            ttk.Checkbutton(row, variable=var_checked).pack(side="left", padx=(0, 8))
 
-            tk.Label(row, text=summary, anchor="w").pack(side="left", fill="x", expand=True)
+            ttk.Label(row, text=summary or "(ohne Titel)", anchor="w").pack(side="left", fill="x", expand=True)
 
-            tk.Label(row, text=str(count), width=6).pack(side="left")
+            ttk.Label(row, text=str(count), width=8, anchor="center").pack(side="left")
 
-            var_action = tk.StringVar(value="keep")  # keep | delete | rename
-            opt = tk.OptionMenu(row, var_action, "keep", "delete", "rename")
-            opt.configure(width=10)
-            opt.pack(side="left", padx=6)
+            var_action = tk.StringVar(value=self.ACTION_KEEP)
+            opt = ttk.Combobox(
+                row,
+                textvariable=var_action,
+                values=(self.ACTION_KEEP, self.ACTION_DELETE, self.ACTION_RENAME),
+                width=14,
+                state="readonly"
+            )
+            opt.pack(side="left", padx=(12, 0))
 
             rename_var = tk.StringVar(value="")
-            ent = tk.Entry(row, textvariable=rename_var)
-            ent.pack(side="left", fill="x", expand=True)
+            ent = ttk.Entry(row, textvariable=rename_var)
+            ent.pack(side="left", fill="x", expand=True, padx=(10, 0), ipady=2)
 
             def on_action_change(*_args, v=var_action, e=ent):
-                e.configure(state=("normal" if v.get() == "rename" else "disabled"))
+                e.configure(state=("normal" if v.get() == self.ACTION_RENAME else "disabled"))
 
             var_action.trace_add("write", on_action_change)
             on_action_change()
@@ -339,7 +425,11 @@ class ICSGui(tk.Tk):
             })
 
         if not self.rows:
-            tk.Label(self.frame_list, text="Nix g'funda (Filter zu streng?)").pack(anchor="w", pady=10)
+            ttk.Label(
+                self.frame_list,
+                text="Keine passenden Termine gefunden.",
+                style="Empty.TLabel"
+            ).pack(anchor="center", pady=36)
 
     def set_all_checks(self, value: bool):
         for r in self.rows:
@@ -359,17 +449,17 @@ class ICSGui(tk.Tk):
             selected_any = True
             action = r["action"].get()
             summary = r["summary"]
-            if action == "delete":
+            if action == self.ACTION_DELETE:
                 delete_summaries.add(summary)
-            elif action == "rename":
+            elif action == self.ACTION_RENAME:
                 new_name = r["rename"].get().strip()
                 if not new_name:
-                    messagebox.showerror("Fehler", f"Bei '{summary}' isch 'Umbenennen' ausgewählt, aber neuer Name isch leer.")
+                    messagebox.showerror("Fehler", f"Bei '{summary}' wurde 'Umbenennen' gewählt, aber kein neuer Name eingetragen.")
                     return
                 rename_map[summary] = new_name
 
         if not selected_any:
-            messagebox.showinfo("Info", "Du hosch nix markiert. Dann passiert au nix.")
+            messagebox.showinfo("Info", "Es wurde kein Termin ausgewählt.")
             return
 
         new_unfolded = apply_changes_to_ics(self.unfolded, self.events, delete_summaries, rename_map)
@@ -388,10 +478,10 @@ class ICSGui(tk.Tk):
             with open(out_path, "w", encoding="utf-8", newline="") as f:
                 f.write(new_ics)
         except Exception as e:
-            messagebox.showerror("Fehler", f"Konnte ned speichern:\n{e}")
+            messagebox.showerror("Fehler", f"Die Datei konnte nicht gespeichert werden:\n{e}")
             return
 
-        messagebox.showinfo("Fertig", "G'speichert. Du kasch die neue .ics jetzt importiere.")
+        messagebox.showinfo("Fertig", "Die neue ICS-Datei wurde gespeichert und kann jetzt importiert werden.")
 
 
 if __name__ == "__main__":
