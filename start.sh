@@ -7,6 +7,8 @@ set -e
 : "${DISPLAY:=:0}"
 : "${ICS_DIR:=/data}"
 
+mkdir -p /data /config
+
 # Optional: run as specific UID/GID (Unraid-style)
 RUN_AS=""
 if [ -n "${PUID:-}" ] && [ -n "${PGID:-}" ]; then
@@ -16,8 +18,6 @@ if [ -n "${PUID:-}" ] && [ -n "${PGID:-}" ]; then
   RUN_AS="gosu app"
 fi
 
-mkdir -p /config
-
 # VNC password optional
 VNC_AUTH="-nopw"
 if [ -n "${VNC_PASSWORD:-}" ]; then
@@ -26,7 +26,7 @@ if [ -n "${VNC_PASSWORD:-}" ]; then
 fi
 
 # X server
-Xvfb :0 -screen 0 "${RESOLUTION}x24" -ac +extension GLX +render -noreset &
+Xvfb "${DISPLAY}" -screen 0 "${RESOLUTION}x24" -ac +extension GLX +render -noreset &
 sleep 0.3
 
 # simple window manager
@@ -34,7 +34,7 @@ fluxbox >/config/fluxbox.log 2>&1 &
 sleep 0.2
 
 # VNC server
-x11vnc -display :0 -forever -shared -listen 0.0.0.0 -rfbport "${VNC_PORT}" ${VNC_AUTH} >/config/x11vnc.log 2>&1 &
+x11vnc -display "${DISPLAY}" -forever -shared -listen 0.0.0.0 -rfbport "${VNC_PORT}" ${VNC_AUTH} >/config/x11vnc.log 2>&1 &
 
 # noVNC web
 websockify --web /usr/share/novnc/ "${NOVNC_PORT}" "localhost:${VNC_PORT}" >/config/novnc.log 2>&1 &

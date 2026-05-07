@@ -1,0 +1,10 @@
+.git
+.github
+build
+config
+README.md
+.gitignore
+*.log
+__pycache__
+*.pyc
+
