@@ -1,8 +1,8 @@
 # ICS Editor
 
-ICS Editor is a small browser-accessible desktop container for editing iCalendar (`.ics`) files before importing them into a calendar.
+ICS Editor is a small dark-mode web app for editing iCalendar (`.ics`) files before importing them into a calendar.
 
-The app runs a Tkinter GUI inside Xvfb and exposes it through noVNC, which makes it suitable for Unraid and other Docker hosts.
+The app runs directly in the browser and no longer needs VNC, Xvfb, or a desktop session.
 
 ## Docker Image
 
@@ -10,7 +10,7 @@ GitHub Actions builds the image automatically and publishes it to GitHub Contain
 
 ```text
 ghcr.io/jens26bw/ics-editor:latest
-ghcr.io/jens26bw/ics-editor:v1.0
+ghcr.io/jens26bw/ics-editor:v3.0.0
 ```
 
 After the first successful build, check the package settings on GitHub and make the container package public if Unraid should pull it without a GitHub login.
@@ -23,7 +23,7 @@ Use the following container settings in Unraid:
 | --- | --- |
 | Repository | `ghcr.io/jens26bw/ics-editor:latest` |
 | Icon URL | `https://raw.githubusercontent.com/Jens26bw/ICS-Editor/main/ICS-Editor_Logo.png` |
-| WebUI | `http://[IP]:[PORT:8080]/vnc.html?autoconnect=true` |
+| WebUI | `http://[IP]:[PORT:8080]/` |
 | Container port | `8080` |
 | Host path for ICS files | any folder with your `.ics` files |
 | Container path for ICS files | `/data` |
@@ -36,11 +36,8 @@ Optional environment variables:
 | --- | --- | --- |
 | `PUID` | empty | User ID for Unraid file permissions |
 | `PGID` | empty | Group ID for Unraid file permissions |
-| `ICS_DIR` | `/data` | Start folder for the file picker |
-| `NOVNC_PORT` | `8080` | noVNC web port inside the container |
-| `VNC_PORT` | `5900` | internal VNC port |
-| `RESOLUTION` | `1280x720` | virtual desktop resolution |
-| `VNC_PASSWORD` | empty | Optional VNC password |
+| `WEB_PORT` | `8080` | Web app port inside the container |
+| `MAX_UPLOAD_MB` | `32` | Maximum upload size for ICS files |
 
 For a typical Unraid setup, `PUID=99` and `PGID=100` are often used.
 
@@ -54,5 +51,5 @@ docker run --rm -p 8080:8080 -v /path/to/ics:/data -v /path/to/config:/config ic
 Then open:
 
 ```text
-http://localhost:8080/vnc.html?autoconnect=true
+http://localhost:8080/
 ```
