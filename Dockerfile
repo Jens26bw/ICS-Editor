@@ -8,6 +8,7 @@ ENV APP_VERSION=${VERSION}
 LABEL org.opencontainers.image.title="ICS Editor" \
       org.opencontainers.image.description="Browser-accessible ICS editor for Unraid and Docker hosts" \
       org.opencontainers.image.source="https://github.com/Jens26bw/ICS-Editor" \
+      org.opencontainers.image.icon="https://raw.githubusercontent.com/Jens26bw/ICS-Editor/main/ICS-Editor_Logo.png" \
       org.opencontainers.image.version="${VERSION}"
 
 # Tk + X11 + VNC + noVNC
@@ -19,6 +20,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 COPY ics_editor_gui.py /app/ics_editor_gui.py
+COPY ICS-Editor_Logo.png /app/ICS-Editor_Logo.png
 COPY start.sh /start.sh
 RUN chmod +x /start.sh
 

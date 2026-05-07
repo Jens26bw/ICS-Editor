@@ -176,6 +176,8 @@ def apply_changes_to_ics(unfolded_lines: List[str],
 # -----------------------------
 
 class ICSGui(tk.Tk):
+    APP_ICON_PATH = "/app/ICS-Editor_Logo.png"
+
     COLORS = {
         "bg": "#f4f6f8",
         "panel": "#ffffff",
@@ -194,6 +196,7 @@ class ICSGui(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("ICS Editor")
+        self._set_app_icon()
 
         self.geometry("1040x720")
         self.minsize(920, 620)
@@ -291,6 +294,16 @@ class ICSGui(tk.Tk):
 
         # internal list state
         self.rows: List[Dict] = []
+
+    def _set_app_icon(self):
+        if not os.path.exists(self.APP_ICON_PATH):
+            return
+
+        try:
+            self.app_icon = tk.PhotoImage(file=self.APP_ICON_PATH)
+            self.iconphoto(True, self.app_icon)
+        except tk.TclError:
+            pass
 
     def _build_styles(self):
         style = ttk.Style(self)

@@ -22,6 +22,7 @@ Use the following container settings in Unraid:
 | Setting | Value |
 | --- | --- |
 | Repository | `ghcr.io/jens26bw/ics-editor:latest` |
+| Icon URL | `https://raw.githubusercontent.com/Jens26bw/ICS-Editor/main/ICS-Editor_Logo.png` |
 | WebUI | `http://[IP]:[PORT:8080]/vnc.html?autoconnect=true` |
 | Container port | `8080` |
 | Host path for ICS files | any folder with your `.ics` files |
