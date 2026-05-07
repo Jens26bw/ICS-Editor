@@ -42,4 +42,8 @@ x11vnc -display "${DISPLAY}" -forever -shared -listen 0.0.0.0 -rfbport "${VNC_PO
 websockify --web /usr/share/novnc/ "${NOVNC_PORT}" "localhost:${VNC_PORT}" >/config/novnc.log 2>&1 &
 
 # Run the app
-exec ${RUN_AS} python3 /app/ics_editor_gui.py
+if [ -n "$RUN_AS" ]; then
+  exec ${RUN_AS} env DISPLAY="$DISPLAY" ICS_DIR="$ICS_DIR" python3 /app/ics_editor_gui.py
+fi
+
+exec env DISPLAY="$DISPLAY" ICS_DIR="$ICS_DIR" python3 /app/ics_editor_gui.py

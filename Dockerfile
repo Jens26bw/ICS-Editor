@@ -30,6 +30,7 @@ ENV ICS_DIR=/data
 ENV NOVNC_PORT=8080
 ENV VNC_PORT=5900
 ENV RESOLUTION=1280x720
+ENV DISPLAY=:0
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD python3 -c "import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:%s/' % os.environ.get('NOVNC_PORT', '8080'), timeout=3).read()" || exit 1
