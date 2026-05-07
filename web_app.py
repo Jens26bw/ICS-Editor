@@ -26,6 +26,8 @@ PAGE = r"""
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>ICS Editor</title>
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <link rel="apple-touch-icon" href="/favicon.png">
   <style>
     :root {
       color-scheme: dark;
@@ -773,6 +775,13 @@ def index():
 
 @app.get("/logo.png")
 def logo():
+    if LOGO_PATH.exists():
+        return send_file(LOGO_PATH, mimetype="image/png")
+    return Response(status=404)
+
+
+@app.get("/favicon.png")
+def favicon():
     if LOGO_PATH.exists():
         return send_file(LOGO_PATH, mimetype="image/png")
     return Response(status=404)
