@@ -7,6 +7,8 @@ set -e
 : "${DISPLAY:=:0}"
 : "${ICS_DIR:=/data}"
 
+export NOVNC_PORT VNC_PORT RESOLUTION DISPLAY ICS_DIR
+
 mkdir -p /data /config
 
 # Optional: run as specific UID/GID (Unraid-style)
